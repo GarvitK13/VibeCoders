@@ -4,7 +4,7 @@
 
 [![Python](https://img.shields.io/badge/Python-3.8+-blue.svg)](https://www.python.org/downloads/)
 [![Hackathon](https://img.shields.io/badge/Hackathon-2026-orange.svg)]()
-
+PRESENTATION: https://drive.google.com/file/d/16sRsp1cc0fJgFg1WTvk0mJJgzSqO8whn/view?usp=sharing
 ## 🎯 Problem Statement
 
 Millions of conversations happen daily between medical agents/nurses and patients. Often, subtle indications of adverse events go unnoticed—events that could lead to serious complications if not identified quickly. 
