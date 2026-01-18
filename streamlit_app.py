@@ -328,13 +328,11 @@ def main():
             )
             
             class AudioProcessor:
-                def __init__(self):
-                    self.frames = []
-                
                 def recv(self, frame):
-                    # Capture audio frame
+                    # Capture audio frame directly to session state
                     sound = frame.to_ndarray()
-                    self.frames.append(sound)
+                    if 'audio_frames' in st.session_state:
+                        st.session_state.audio_frames.append(sound)
                     return frame
             
             webrtc_ctx = webrtc_streamer(
@@ -346,18 +344,39 @@ def main():
                 async_processing=True,
             )
             
-            if webrtc_ctx.audio_processor:
-                if len(webrtc_ctx.audio_processor.frames) > len(st.session_state.audio_frames):
-                    st.session_state.audio_frames = webrtc_ctx.audio_processor.frames.copy()
+            # Track recording state
+            if 'recording_started' not in st.session_state:
+                st.session_state.recording_started = False
             
+            if webrtc_ctx.state.playing and not st.session_state.recording_started:
+                st.session_state.recording_started = True
+                st.session_state.audio_frames = []  # Clear on new recording
+            elif not webrtc_ctx.state.playing and st.session_state.recording_started:
+                st.session_state.recording_started = False
+            
+            # Show recording status with detailed feedback
             if webrtc_ctx.state.playing:
-                st.success("🔴 Recording in progress... Speak now!")
-                st.info(f"📊 Captured {len(st.session_state.audio_frames)} audio chunks")
+                st.success("🔴 RECORDING - Speak into microphone NOW!")
+                frame_count = len(st.session_state.audio_frames)
+                st.metric("Audio Chunks Captured", frame_count)
+                
+                if frame_count == 0:
+                    st.error("⚠️ NO AUDIO DETECTED! Troubleshoot:")
+                    st.markdown("""
+                    - Did you click "Allow" for microphone permission?
+                    - Is correct microphone selected in browser?
+                    - Is microphone muted or disabled?
+                    - Are other apps blocking microphone access?
+                    """)
+                else:
+                    duration = frame_count * 0.02  # ~20ms per chunk
+                    st.success(f"✅ Audio flowing! (~{duration:.1f}s recorded)")
             else:
                 if st.session_state.audio_frames:
-                    st.success(f"✅ Recording stopped. Total: {len(st.session_state.audio_frames)} audio chunks")
+                    st.success(f"✅ Recording complete: {len(st.session_state.audio_frames)} chunks")
+                    st.info("👇 Click 'Transcribe Recording' button below")
                 else:
-                    st.info("💡 Click 'START' above to begin recording your conversation")
+                    st.info("💡 Click START (allow mic when browser prompts)")
         
         with col2:
             st.markdown("#### ⚙️ Controls")
