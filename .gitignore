@@ -43,13 +43,12 @@ secrets.json
 *.csv
 *.xlsx
 
-# Model files - KEEP saved_models/ for deployment
-# Uncomment below if models are too large (>100MB)
-# saved_models/
-# *.pkl
-# *.joblib
-# *.pt
-# *.pth
+# Model files - Include saved_models/ for deployment
+!saved_models/
+!saved_models/*.pkl
+!saved_models/*.joblib
+
+# Other large model formats
 *.h5
 *.ckpt
 *.bin
