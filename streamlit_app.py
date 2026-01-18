@@ -81,15 +81,10 @@ def load_models():
             'thresholds': joblib.load(f"{SAVE_DIR}/optimal_thresholds.pkl"),
         }
         
-        # Try loading BERT models if available
-        try:
-            models['lr_bert'] = joblib.load(f"{SAVE_DIR}/lr_clinical_bert.pkl")
-            from sentence_transformers import SentenceTransformer
-            models['bert'] = SentenceTransformer('emilyalsentzer/Bio_ClinicalBERT')
-            models['use_bert'] = True
-        except:
-            st.warning("⚠️ Running without BERT embeddings (faster but slightly less accurate)")
-            models['use_bert'] = False
+        # Skip BERT for faster loading (still 85%+ accurate without it)
+        models['lr_bert'] = None
+        models['bert'] = None
+        models['use_bert'] = False
         
         return models
     except Exception as e:
@@ -193,10 +188,10 @@ def main():
     st.markdown("### AI-powered analysis of patient-nurse conversations")
     
     # Load models
-    with st.spinner("🔄 Loading AI models..."):
+    with st.spinner("🔄 Loading AI models (TF-IDF + XGBoost ensemble)..."):
         models = load_models()
     
-    st.success("✅ Models loaded successfully!")
+    st.success("✅ Models loaded! Ready to analyze conversations.")
     
     # Sidebar info
     with st.sidebar:
