@@ -353,72 +353,74 @@ def main():
                 {"iceServers": [{"urls": ["stun:stun.l.google.com:19302"]}]}
             )
             
-            # Audio recorder
+            # Audio processor callback
             class AudioProcessor:
-                def __init__(self):
-                    self.frames = []
-                
-                def recv(self, frame):
-                    sound = frame.to_ndarray()
-                    self.frames.append(sound)
-                    return frame
+                def recv_queued(self, frames):
+                    # Store audio frames in session state
+                    for frame in frames:
+                        sound = frame.to_ndarray()
+                        st.session_state.audio_frames.append(sound)
+                    return frames
             
             webrtc_ctx = webrtc_streamer(
                 key="audio-recorder",
                 mode=WebRtcMode.SENDONLY,
                 rtc_configuration=RTC_CONFIGURATION,
                 media_stream_constraints={"video": False, "audio": True},
-                audio_receiver_size=1024,
+                audio_processor_factory=AudioProcessor,
             )
             
-            st.info("💡 Click 'START' above to begin recording your conversation")
+            # Show recording status
+            if webrtc_ctx.state.playing:
+                st.success("🔴 Recording in progress... Speak now!")
+                st.info(f"📊 Captured {len(st.session_state.audio_frames)} audio chunks")
+            else:
+                st.info("💡 Click 'START' above to begin recording your conversation")
         
         with col2:
             st.markdown("#### ⚙️ Controls")
             
             whisper_model = load_whisper_model()
             
+            if st.button("🗑️ Clear Recording"):
+                st.session_state.audio_frames = []
+                st.session_state.transcript = ""
+                st.success("✅ Recording cleared!")
+                st.rerun()
+            
             if st.button("🎤 Transcribe Recording", type="primary", disabled=(not whisper_model)):
                 if webrtc_ctx.state.playing:
-                    st.warning("⚠️ Please stop recording first!")
+                    st.warning("⚠️ Please stop recording first by clicking 'START' button again!")
+                elif not st.session_state.audio_frames:
+                    st.error("❌ No audio recorded! Please record audio first.")
                 else:
-                    with st.spinner("🔄 Transcribing audio..."):
+                    with st.spinner("🔄 Transcribing audio with Whisper AI..."):
                         try:
-                            # Get audio data from webrtc
-                            if webrtc_ctx.audio_receiver:
-                                audio_frames = webrtc_ctx.audio_receiver.get_frames(timeout=1)
+                            # Combine all audio frames
+                            st.info(f"Processing {len(st.session_state.audio_frames)} audio chunks...")
+                            combined_audio = np.concatenate(st.session_state.audio_frames)
+                            
+                            # Save to temporary WAV file
+                            with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp_file:
+                                # Convert to audio segment and save
+                                audio_segment = AudioSegment(
+                                    combined_audio.tobytes(),
+                                    frame_rate=48000,
+                                    sample_width=2,
+                                    channels=1
+                                )
+                                audio_segment.export(tmp_file.name, format="wav")
                                 
-                                if audio_frames:
-                                    # Combine audio frames
-                                    combined_audio = np.concatenate([frame.to_ndarray() for frame in audio_frames])
-                                    
-                                    # Save to temporary file
-                                    with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp_file:
-                                        # Convert to audio segment and save
-                                        audio_segment = AudioSegment(
-                                            combined_audio.tobytes(),
-                                            frame_rate=48000,
-                                            sample_width=2,
-                                            channels=1
-                                        )
-                                        audio_segment.export(tmp_file.name, format="wav")
-                                        
-                                        # Transcribe with Whisper
-                                        result = whisper_model.transcribe(tmp_file.name)
-                                        st.session_state.transcript = result["text"]
-                                        
-                                        os.unlink(tmp_file.name)
-                                    
-                                    st.success("✅ Transcription complete!")
-                                else:
-                                    st.warning("⚠️ No audio data captured. Please record something first.")
+                                # Transcribe with Whisper
+                                result = whisper_model.transcribe(tmp_file.name)
+                                st.session_state.transcript = result["text"]
+                                
+                                os.unlink(tmp_file.name)
+                            
+                            st.success("✅ Transcription complete!")
                         except Exception as e:
                             st.error(f"❌ Transcription error: {e}")
-            
-            if st.button("🗑️ Clear Recording"):
-                st.session_state.transcript = ""
-                st.session_state.audio_frames = []
-                st.rerun()
+                            st.exception(e)
         
         # Show transcript
         if st.session_state.transcript:
