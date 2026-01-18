@@ -353,29 +353,41 @@ def main():
                 {"iceServers": [{"urls": ["stun:stun.l.google.com:19302"]}]}
             )
             
-            # Audio processor callback
+            # Audio processor to capture frames
             class AudioProcessor:
-                def recv_queued(self, frames):
-                    # Store audio frames in session state
-                    for frame in frames:
-                        sound = frame.to_ndarray()
-                        st.session_state.audio_frames.append(sound)
-                    return frames
+                def __init__(self):
+                    self.frames = []
+                
+                def recv(self, frame):
+                    # Capture audio frame
+                    sound = frame.to_ndarray()
+                    self.frames.append(sound)
+                    return frame
             
+            # Create webrtc streamer with audio processor
             webrtc_ctx = webrtc_streamer(
                 key="audio-recorder",
                 mode=WebRtcMode.SENDONLY,
                 rtc_configuration=RTC_CONFIGURATION,
                 media_stream_constraints={"video": False, "audio": True},
                 audio_processor_factory=AudioProcessor,
+                async_processing=True,
             )
+            
+            # Store processor frames to session state when available
+            if webrtc_ctx.audio_processor:
+                if len(webrtc_ctx.audio_processor.frames) > len(st.session_state.audio_frames):
+                    st.session_state.audio_frames = webrtc_ctx.audio_processor.frames.copy()
             
             # Show recording status
             if webrtc_ctx.state.playing:
                 st.success("🔴 Recording in progress... Speak now!")
                 st.info(f"📊 Captured {len(st.session_state.audio_frames)} audio chunks")
             else:
-                st.info("💡 Click 'START' above to begin recording your conversation")
+                if st.session_state.audio_frames:
+                    st.success(f"✅ Recording stopped. Total: {len(st.session_state.audio_frames)} audio chunks")
+                else:
+                    st.info("💡 Click 'START' above to begin recording your conversation")
         
         with col2:
             st.markdown("#### ⚙️ Controls")
