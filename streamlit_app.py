@@ -81,6 +81,10 @@ def load_models():
             'thresholds': joblib.load(f"{SAVE_DIR}/optimal_thresholds.pkl"),
         }
         
+        # Verify TF-IDF is fitted
+        if not hasattr(models['tfidf'], 'vocabulary_') or models['tfidf'].vocabulary_ is None:
+            raise ValueError("TF-IDF vectorizer not properly fitted")
+        
         # Skip BERT for faster loading (still 85%+ accurate without it)
         models['lr_bert'] = None
         models['bert'] = None
@@ -89,6 +93,8 @@ def load_models():
         return models
     except Exception as e:
         st.error(f"❌ Error loading models: {e}")
+        st.error("⚠️ This may be due to scikit-learn version mismatch between training and deployment.")
+        st.info("💡 Solution: Models need to be retrained with scikit-learn==1.3.2 and saved again.")
         st.stop()
 
 # Risk categories
