@@ -314,7 +314,7 @@ def main():
             st.session_state.transcript = ""
         
         st.markdown("#### 🎤 Record Audio")
-        st.info("Click the microphone icon below, speak, then click stop. Grant microphone permission when prompted.")
+        st.info("📍 Recording continues until you click STOP - pauses/silence won't stop it!")
         
         # Simple audio recorder - returns audio bytes when recording is complete
         audio_bytes = audio_recorder(
@@ -323,6 +323,8 @@ def main():
             neutral_color="#3498db",
             icon_name="microphone",
             icon_size="3x",
+            pause_threshold=60.0,  # Very high threshold so silence doesn't stop recording
+            sample_rate=41_000,
         )
         
         if audio_bytes:
