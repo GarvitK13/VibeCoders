@@ -10,14 +10,13 @@ import whisper
 from pydub import AudioSegment
 import io
 
-# Page config
+
 st.set_page_config(
     page_title="Adverse Medical Event Detector",
     page_icon="🏥",
     layout="wide"
 )
 
-# Custom CSS
 st.markdown("""
 <style>
     .risk-critical {
@@ -70,7 +69,6 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# Load models with caching
 @st.cache_resource
 def load_models():
     """Load all ML models and vectorizers"""
@@ -103,7 +101,6 @@ def load_models():
         st.info("💡 Solution: Models need to be retrained with scikit-learn==1.3.2 and saved again.")
         st.stop()
 
-# Load Whisper model
 @st.cache_resource
 def load_whisper_model():
     """Load Whisper model for transcription"""
@@ -113,11 +110,9 @@ def load_whisper_model():
         st.warning(f"⚠️ Could not load Whisper model: {e}")
         return None
 
-# Risk categories
 HIGH_RISK = {"emergency", "allergic_reaction", "medication_error"}
 MEDIUM_RISK = {"infection", "symptom_worsening", "side_effects"}
 
-# Event descriptions
 EVENT_DESCRIPTIONS = {
     "emergency": "🚨 Urgent medical situation requiring immediate care",
     "allergic_reaction": "🤧 Allergic response, rash, breathing difficulties",
@@ -132,10 +127,8 @@ def predict_categories_ensemble(text, models, weights=(0.3, 0.7, 0.0)):
     """Ensemble prediction (adaptive based on BERT availability)"""
     vec_tfidf = models['tfidf'].transform([text])
     
-    # Model 1: Logistic Regression (TF-IDF)
     lr_probs = models['lr'].predict_proba(vec_tfidf)[0]
     
-    # Model 2: XGBoost per label
     xgb_probs = np.array([
         models['xgb'][label].predict_proba(vec_tfidf)[0][1]
         for label in models['label_classes']
@@ -153,7 +146,6 @@ def predict_categories_ensemble(text, models, weights=(0.3, 0.7, 0.0)):
             weights[2] * bert_probs
         )
     else:
-        # Use only TF-IDF models (higher weight on XGBoost)
         final_probs = (
             weights[0] * lr_probs +
             weights[1] * xgb_probs
@@ -170,7 +162,6 @@ def apply_thresholds_with_fallback(probs, threshold_map):
 
 def predict_adverse_events(text, models):
     """Main prediction pipeline"""
-    # Stage 1: Binary classification
     vec = models['tfidf'].transform([text])
     binary_prob = models['binary'].predict_proba(vec)[0][1]
     
@@ -183,11 +174,9 @@ def predict_adverse_events(text, models):
             "category_probabilities": {}
         }
     
-    # Stage 2: Multi-label classification
     probs = predict_categories_ensemble(text, models)
     active_labels = apply_thresholds_with_fallback(probs, models['thresholds'])
     
-    # Determine risk level
     if any(l in HIGH_RISK for l in active_labels):
         risk = "CRITICAL"
     elif any(l in MEDIUM_RISK for l in active_labels):
@@ -203,25 +192,20 @@ def predict_adverse_events(text, models):
         "category_probabilities": {k: round(v * 100, 1) for k, v in probs.items()}
     }
 
-# Main app
 def main():
-    # Header
     st.title("🏥 Adverse Medical Event Detection System")
     st.markdown("### AI-powered analysis of patient-nurse conversations")
     
-    # Load models
     with st.spinner("🔄 Loading AI models (TF-IDF + XGBoost ensemble)..."):
         models = load_models()
     
     st.success("✅ Models loaded! Ready to analyze conversations.")
     
-    # Sidebar info
     with st.sidebar:
         st.header("ℹ️ About")
         st.markdown("""
         This system uses an ensemble of machine learning models to detect adverse medical events from patient conversations.
         
-        **Event Categories:**
         - 🚨 Emergency
         - 💊 Medication Error
         - 🤧 Allergic Reaction
@@ -246,7 +230,6 @@ def main():
         st.markdown("**Team:** VibeCoders")
         st.markdown("**Hackathon:** 2026")
     
-    # Input tabs
     tab1, tab2, tab3 = st.tabs(["📝 Manual Input", "🎙️ Live Call Recording", "📄 Example Cases"])
     
     with tab1:
@@ -273,17 +256,13 @@ def main():
                 st.error("⚠️ Please enter a dialogue to analyze!")
             else:
                 with st.spinner("🔄 Analyzing conversation..."):
-                    # Combine text
                     text = f"{dialogue} {clinical_note}"
                     
-                    # Get predictions
                     result = predict_adverse_events(text, models)
                     
-                    # Display results
                     st.markdown("---")
                     st.markdown("## 📊 Analysis Results")
                     
-                    # Risk level display
                     risk_level = result['risk_level']
                     if risk_level == "CRITICAL":
                         st.markdown('<div class="risk-critical">🚨 CRITICAL RISK - IMMEDIATE ATTENTION REQUIRED</div>', unsafe_allow_html=True)
@@ -296,7 +275,6 @@ def main():
                     
                     st.markdown("")
                     
-                    # Metrics
                     col1, col2, col3 = st.columns(3)
                     with col1:
                         st.metric("Overall Confidence", f"{result['confidence']}%")
@@ -305,7 +283,6 @@ def main():
                     with col3:
                         st.metric("Categories Detected", len(result['predicted_categories']))
                     
-                    # Detected events
                     if result['predicted_categories'] != ["no_adverse_event"]:
                         st.markdown("### 🏷️ Detected Adverse Events:")
                         
@@ -316,7 +293,6 @@ def main():
                                     st.progress(result['category_probabilities'][category] / 100)
                                     st.caption(f"Confidence: {result['category_probabilities'][category]}%")
                         
-                        # Detailed probabilities
                         with st.expander("📈 View All Category Probabilities"):
                             prob_df = pd.DataFrame([
                                 {"Category": k.replace('_', ' ').title(), "Probability": f"{v}%"}
@@ -337,7 +313,6 @@ def main():
         5. Transcript is analyzed for adverse events
         """)
         
-        # Initialize session state for audio
         if 'audio_frames' not in st.session_state:
             st.session_state.audio_frames = []
         if 'transcript' not in st.session_state:
@@ -348,12 +323,10 @@ def main():
         with col1:
             st.markdown("#### 🎤 Audio Recorder")
             
-            # WebRTC configuration
             RTC_CONFIGURATION = RTCConfiguration(
                 {"iceServers": [{"urls": ["stun:stun.l.google.com:19302"]}]}
             )
             
-            # Audio processor to capture frames
             class AudioProcessor:
                 def __init__(self):
                     self.frames = []
@@ -364,7 +337,6 @@ def main():
                     self.frames.append(sound)
                     return frame
             
-            # Create webrtc streamer with audio processor
             webrtc_ctx = webrtc_streamer(
                 key="audio-recorder",
                 mode=WebRtcMode.SENDONLY,
@@ -374,12 +346,10 @@ def main():
                 async_processing=True,
             )
             
-            # Store processor frames to session state when available
             if webrtc_ctx.audio_processor:
                 if len(webrtc_ctx.audio_processor.frames) > len(st.session_state.audio_frames):
                     st.session_state.audio_frames = webrtc_ctx.audio_processor.frames.copy()
             
-            # Show recording status
             if webrtc_ctx.state.playing:
                 st.success("🔴 Recording in progress... Speak now!")
                 st.info(f"📊 Captured {len(st.session_state.audio_frames)} audio chunks")
@@ -434,7 +404,6 @@ def main():
                             st.error(f"❌ Transcription error: {e}")
                             st.exception(e)
         
-        # Show transcript
         if st.session_state.transcript:
             st.markdown("---")
             st.markdown("### 📝 Transcribed Conversation")
@@ -448,14 +417,11 @@ def main():
             
             if st.button("🔍 Analyze Transcription", type="primary", use_container_width=True):
                 with st.spinner("🔄 Analyzing conversation..."):
-                    # Get predictions
                     result = predict_adverse_events(transcript_text, models)
                     
-                    # Display results
                     st.markdown("---")
                     st.markdown("## 📊 Analysis Results")
                     
-                    # Risk level display
                     risk_level = result['risk_level']
                     if risk_level == "CRITICAL":
                         st.markdown('<div class="risk-critical">🚨 CRITICAL RISK - IMMEDIATE ATTENTION REQUIRED</div>', unsafe_allow_html=True)
@@ -468,7 +434,6 @@ def main():
                     
                     st.markdown("")
                     
-                    # Metrics
                     col1, col2, col3 = st.columns(3)
                     with col1:
                         st.metric("Overall Confidence", f"{result['confidence']}%")
@@ -477,7 +442,6 @@ def main():
                     with col3:
                         st.metric("Categories Detected", len(result['predicted_categories']))
                     
-                    # Detected events
                     if result['predicted_categories'] != ["no_adverse_event"]:
                         st.markdown("### 🏷️ Detected Adverse Events:")
                         
@@ -545,7 +509,6 @@ def main():
                     
                     st.markdown("---")
     
-    # Footer
     st.markdown("---")
     st.markdown("""
     <div style='text-align: center; color: #666;'>
