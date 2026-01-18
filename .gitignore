@@ -39,14 +39,20 @@ env/
 config.ini
 secrets.json
 
-# Large Files
+# Large Data Files (exclude CSVs from repo)
 *.csv
 *.xlsx
+
+# Model files - KEEP saved_models/ for deployment
+# Uncomment below if models are too large (>100MB)
+# saved_models/
+# *.pkl
+# *.joblib
+# *.pt
+# *.pth
 *.h5
-*.pkl
-*.joblib
-*.pt
-*.pth
+*.ckpt
+*.bin
 *.ckpt
 *.bin
 

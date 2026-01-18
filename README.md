@@ -31,7 +31,11 @@ Millions of conversations happen daily between medical agents/nurses and patient
 | 🤢 **Side Effects** | Medication-induced symptoms | 0.5 |
 | ❌ **Non-Compliance** | Not taking meds as prescribed | 0.4 |
 
-## 🛠️ Installation
+## � Live Demo
+
+**Try the deployed app:** [Launch Streamlit App](https://your-app-name.streamlit.app) 🎉
+
+## 🛠️ Local Installation
 
 ```bash
 # Clone repository
@@ -46,7 +50,16 @@ python -m venv .venv
 # Install dependencies
 pip install -r requirements.txt
 
-# Set up API key
+# Run Streamlit app
+streamlit run streamlit_app.py
+```
+
+The app will open at `http://localhost:8501`
+
+### For Data Generation (Optional)
+
+```bash
+# Set up API key for data generation
 copy .env.example .env
 # Edit .env and add your Groq API key
 ```
@@ -80,6 +93,17 @@ copy .env.example .env
 - [ ] Real-time dashboard
 - [ ] REST API for EMR integration
 - [ ] Mobile app for nurses
+
+## 🚀 Deploy to Streamlit Cloud
+
+1. **Fork this repository** on GitHub
+2. Go to [share.streamlit.io](https://share.streamlit.io/)
+3. Click "New app"
+4. Select your repository
+5. Set main file: `streamlit_app.py`
+6. Click "Deploy"
+
+Your app will be live in minutes!
 
 ## ⚠️ Security
 
