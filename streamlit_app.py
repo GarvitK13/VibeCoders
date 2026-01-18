@@ -7,6 +7,8 @@ from audio_recorder_streamlit import audio_recorder
 import tempfile
 import whisper
 import io
+import wave
+import struct
 
 
 st.set_page_config(
@@ -345,18 +347,49 @@ def main():
                         # Load Whisper model
                         whisper_model = load_whisper_model()
                         
-                        # Transcribe
-                        result = whisper_model.transcribe(audio_path)
+                        # Convert audio to format Whisper expects
+                        # Read the WAV file and ensure it's in the right format
+                        with wave.open(audio_path, 'rb') as wav_file:
+                            # Get audio parameters
+                            channels = wav_file.getnchannels()
+                            sample_width = wav_file.getsampwidth()
+                            framerate = wav_file.getframerate()
+                            frames = wav_file.readframes(wav_file.getnframes())
+                            
+                            # Convert to mono if stereo
+                            if channels == 2:
+                                # Convert stereo to mono
+                                audio_data = np.frombuffer(frames, dtype=np.int16)
+                                audio_data = audio_data.reshape(-1, 2)
+                                audio_data = audio_data.mean(axis=1).astype(np.int16)
+                                frames = audio_data.tobytes()
+                                channels = 1
+                            
+                            # Save as mono WAV for Whisper
+                            mono_path = audio_path.replace('.wav', '_mono.wav')
+                            with wave.open(mono_path, 'wb') as mono_wav:
+                                mono_wav.setnchannels(1)
+                                mono_wav.setsampwidth(sample_width)
+                                mono_wav.setframerate(framerate)
+                                mono_wav.writeframes(frames)
+                        
+                        # Transcribe with Whisper
+                        result = whisper_model.transcribe(mono_path, fp16=False)
                         st.session_state.transcript = result["text"]
                         
-                        # Clean up temp file
+                        # Clean up temp files
                         os.unlink(audio_path)
+                        if os.path.exists(mono_path):
+                            os.unlink(mono_path)
                         
                         st.success("✅ Transcription complete!")
                     except Exception as e:
-                        st.error(f"❌ Transcription error: {e}")
+                        st.error(f"❌ Transcription error: {str(e)}")
+                        st.exception(e)
                         if os.path.exists(audio_path):
                             os.unlink(audio_path)
+                        if 'mono_path' in locals() and os.path.exists(mono_path):
+                            os.unlink(mono_path)
         else:
             st.info("👆 Click the microphone to start recording")
         
